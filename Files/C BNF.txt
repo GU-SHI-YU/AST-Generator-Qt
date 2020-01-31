@@ -1,0 +1,79 @@
+<program> 				::= <external_decl_list>
+
+<external_decl_list> 	::= <external_decl><external_decl_list>
+						| <external_decl>
+
+<external_decl>			::= <decl>
+						| <funtion_definition>
+
+<decl>					::= <decl_specs><init_declarator_list>';'
+
+<decl_specs>			::= <type_decl>
+						| <type_decl><decl_specs>
+
+<type_decl>				::= 'void'
+						| 'char'
+						| 'short'
+						| 'int'
+						| 'long'
+						| 'float'
+						| 'double'
+						| 'signed'
+						| 'unsigned'
+
+<init_declarator_list>	::= <declarator> ',' <init_declarator_list>
+						| <declarator>
+
+<declarator>			::= id
+						| id'['<const>']'
+						| id'('<actual_param_list>')'
+	
+
+<actual_param_list>		::= <exp> ',' <actual_param_list>
+						| e
+
+<funtion_definition>	::= <type_decl>id'('<formal_param_list>')'<stat_block>
+
+<formal_param_list>		::= <formal_param> ',' <formal_param_list>
+						| e
+
+<formal_param>			::= <type_decl>id
+
+<stat_block>			::= '{'<local_decl_list><stat_list>'}'
+
+<local_decl_list>		::= <local_decl> ',' <local_decl_list>
+						| e
+
+<local_decl>			::= <type_decl><init_declarator_list>';'
+
+<stat_list>				::= <stat><stat_list>
+						| e
+
+<stat>					::= <exp>';'
+						| return <exp>';'
+						| <select_stat>
+						| <jump_stat>
+						| <iteration_stat>
+
+<select_stat>			::= if'('<exp>')'<stat>
+						| if'('<exp>')'<stat>else<stat>
+
+<jump_stat>				::= 'break'';'
+						| 'continue'';'
+
+<iteration_stat>		::= 'while' '(' <exp> ')' <stat>
+						| 'do' <stat> 'while' '(' <exp> ')' ';'
+						| 'for' '(' <exp> ';' <exp> ';' <exp> ')' <stat>
+						| 'for' '(' <exp> ';' <exp> ';'	')' <stat>
+						| 'for' '(' <exp> ';'	';' <exp> ')' <stat>
+						| 'for' '(' <exp> ';'	';'	')' <stat>
+						| 'for' '('	';' <exp> ';' <exp> ')' <stat>
+						| 'for' '('	';' <exp> ';'	')' <stat>
+						| 'for' '('	';'	';' <exp> ')' <stat>
+						| 'for' '('	';'	';'	')' <stat>
+
+<const>					::= const_int
+						| const_long
+						| const_float
+						| const_double
+						| const_string
