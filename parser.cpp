@@ -1,38 +1,13 @@
-#define _CRT_SECURE_NO_WARNINGS
+﻿#define _CRT_SECURE_NO_WARNINGS
 
-#include "get_token.cpp"
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "get_token.cpp"
+#include "astgeneratorgui.h"
 #include "type_define.h"
 #include "token.h"
-
-int Compare(int a, int b);
-int Match(int type);
-void Macro();
-void Program();
-AST ExternalDeclList();
-AST ExternalDecl();
-AST Decl();
-AST DeclSpecs();
-AST InitDeclaratorList();
-AST TypeDecl();
-AST Declarator();
-AST ActualParamList();
-AST FunctionDefinition();
-AST FormalParamList();
-AST FormalParam();
-AST StatBlock();
-AST LocalDeclList();
-AST LocalDecl();
-AST StatList();
-AST Stat();
-AST SelectStat();
-AST JumpStat();
-AST IterationStat();
-AST Exp();
-AST Const();
-AST Id();
-void ShowAST(AST t,int i);
+#include "function_decl.h"
 
 int Compare(int a, int b)
 {
@@ -59,88 +34,152 @@ int Match(int type)
 	return 1;
 }
 
-void Macro()
+AST MacroList()
 {
-	while (true)
+	AST root = (ASTNode*)malloc(sizeof(ASTNode));
+	if (!root)
+		exit(-1);
+	root->type = MACROLIST;
+	if ((root->child = Macro()))
 	{
-		word = GetToken();
-		if (word == INCLUDE)
-		{
-			printf("文件包含：\n");
-			word = GetToken();
-			if (word == CONST_STRING)
-			{
-				Node* q = last_token->data->next;
-				while (q)
-				{
-					putchar(q->data);
-					q = q->next;
-				}
-			}
-			else if (word == LS)
-			{
-				char c = fgetc(fp);
-				do
-				{
-					putchar(c);
-					c = fgetc(fp);
-					if (c == '\n')
-						l_num++;
-				} while (c != '>');
-			}
-			else
-			{
-				printf("%d:错误的文件包含命令！\n",l_num);
-				return;
-			}
-			printf("\n");
-		}
-		else if (word == DEFINE)
-		{
-			printf("宏定义：\n");
-			char c = fgetc(fp);
-			while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-			{
-				c = fgetc(fp);
-				if (c == '\n')
-					l_num++;
-			}
-			printf("定义 ");
-			do
-			{
-				putchar(c);
-				c = fgetc(fp);
-				if (c == '\n')
-					l_num++;
-			} while (c != ' ' && c != '\t' && c != '\r' && c != '\n');
-			while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
-			{
-				c = fgetc(fp);
-				if (c == '\n')
-					l_num++;
-			}
-			printf("为 ");
-			do
-			{
-				putchar(c);
-				c = fgetc(fp);
-				if (c == '\n')
-					l_num++;
-			} while (c != ' ' && c != '\t' && c != '\r' && c!='\n');
-			ungetc(c, fp);
-			printf("\n");
-		}
-		else
-			break;
+		if ((root->child->brother = MacroList()))
+			root->child->brother->brother = NULL;
 	}
-	putchar('\n');
+	else
+		return NULL;
+	return root;
 }
 
-void Program()
+AST Macro()
 {
-	AST ast;
-	if ((ast == ExternalDeclList()))
-		ShowAST(ast,0);
+	AST root = (ASTNode*)malloc(sizeof(ASTNode));
+	if (!root)
+		exit(-1);
+	Node* head = (Node*)malloc(sizeof(Node));
+	if (!head)
+		exit(-1);
+	head->next = NULL;
+	string token = head;
+	if (Match(INCLUDE))
+	{
+		root->type = INCLUDEMACRO;
+		if (word == CONST_STRING)
+		{
+			root->data.id_name = last_token->data;
+			root->child = NULL;
+		}
+		else if (word == LS)
+		{
+			char c = fgetc(fp);
+			do
+			{
+				Node* p = (Node*)malloc(sizeof(Node));
+				if (!p)
+					exit(-1);
+				p->data = c;
+				p->next = token->next;
+				token->next = p;
+				token = token->next;
+				c = fgetc(fp);
+				if (c == '\n')
+					l_num++;
+			} while (c != '>');
+			root->data.id_name = head;
+			root->child = NULL;
+		}
+		else
+		{
+			printf("%d:错误的文件包含命令！\n", l_num);
+			return NULL;
+		}
+	}
+	else if (word == DEFINE)
+	{
+		root->type = DEFINEMACRO;
+		char c = fgetc(fp);
+		while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+		{
+			c = fgetc(fp);
+			if (c == '\n')
+				l_num++;
+		}
+		do
+		{
+			Node* p = (Node*)malloc(sizeof(Node));
+			if (!p)
+				exit(-1);
+			p->data = c;
+			p->next = token->next;
+			token->next = p;
+			token = token->next;
+			c = fgetc(fp);;
+			if (c == '\n')
+				l_num++;
+		} while (c != ' ' && c != '\t' && c != '\r' && c != '\n');
+		root->child = (ASTNode*)malloc(sizeof(ASTNode));
+		if (!root->child)
+			exit(-1);
+		root->child->data.id_name = head;
+		root->child->child = NULL;
+		Node* head2 = (Node*)malloc(sizeof(Node));
+		if (!head2)
+			exit(-1);
+		head2->next = NULL;
+		string token2 = head2;
+		while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
+		{
+			c = fgetc(fp);
+			if (c == '\n')
+				l_num++;
+		}
+		do
+		{
+			Node* p = (Node*)malloc(sizeof(Node));
+			if (!p)
+				exit(-1);
+			p->data = c;
+			p->next = token2->next;
+			token2->next = p;
+			token2 = token2->next;
+			c = fgetc(fp);;
+			if (c == '\n')
+				l_num++;
+		} while (c != ' ' && c != '\t' && c != '\r' && c != '\n');
+		ungetc(c, fp);
+		root->child->brother = (ASTNode*)malloc(sizeof(ASTNode));
+		if (!root->child->brother)
+			exit(-1);
+		root->child->brother->data.id_name = head2;
+		root->child->brother->child = NULL;
+	}
+	else
+		return NULL;
+	word = GetToken();
+	return root;
+}
+
+void Program(ASTGeneratorGUI *w)
+{
+	AST ast = (ASTNode*)malloc(sizeof(ASTNode));
+	if (!ast)
+		exit(-1);
+	ast->type = PROGRAMME;
+    word = GetToken();
+	if ((ast->child = MacroList()))
+	{
+		if((ast->child->brother = ExternalDeclList()))
+		{
+			ast->child->brother->brother = NULL;
+			ShowAST(ast, w);
+		}
+		else
+			printf("测试文档错误！\n");
+	}
+	else if((ast->child = ExternalDeclList()))
+	{
+		ast->child->brother = NULL;
+		ShowAST(ast,w);
+	}
 	else
 		printf("测试文档错误！\n");
 }
@@ -150,28 +189,14 @@ AST ExternalDeclList()
 	if (word == EOF)
 		return NULL;
 	AST root = (AST)malloc(sizeof(ASTNode));
+	if (!root)
+		exit(-1);
 	root->brother = NULL;
-	if (!root)
-		exit(-1);
 	root->type = EXTERNALDECLLIST;
-	if ((root->child == ExternalDecl()))
+	if ((root->child = Decl()))
 	{
-		root->child->brother = ExternalDeclList();
-	}
-	else
-		return NULL;
-	return root;
-}
-
-AST ExternalDecl()
-{
-	AST root = (AST)malloc(sizeof(ASTNode));
-	if (!root)
-		exit(-1);
-	root->type = EXTERNALDECL;
-	if ((root->child == Decl()))
-	{
-		root->child->brother = NULL;
+		if((root->child->brother = ExternalDeclList()))
+			root->child->brother->brother = NULL;
 	}
 	else
 		return NULL;
@@ -184,9 +209,9 @@ AST Decl()
 	if (!root)
 		exit(-1);
 	root->type = DECL;
-	if ((root->child == DeclSpecs()))
+	if ((root->child = DeclSpecs()))
 	{
-		if ((root->child->brother == InitDeclaratorList()))
+        if ((root->child->brother = InitDeclaratorList()))
 			root->child->brother->brother = NULL;
 		else
 			return NULL;
@@ -211,9 +236,9 @@ AST DeclSpecs()
 	if (!root)
 		exit(-1);
 	root->type = DECLSPECS;
-	if ((root->child == TypeDecl()))
+	if ((root->child = TypeDecl()))
 	{
-        if(root->child->brother = DeclSpecs())
+        if((root->child->brother = DeclSpecs()))
             root->child->brother->brother = NULL;
 	}
 	else
@@ -241,11 +266,11 @@ AST InitDeclaratorList()
 	if (!root)
 		exit(-1);
 	root->type = INITDECLARATIONLIST;
-	if ((root->child == Declarator()))
+	if ((root->child = Declarator()))
 	{
 		if (Match(COMMA))
 		{
-			if ((root->child->brother == InitDeclaratorList()))
+			if ((root->child->brother = InitDeclaratorList()))
 				root->child->brother->brother = NULL;;
 		}
 		else
@@ -263,12 +288,12 @@ AST Declarator()
 	AST root = (AST)malloc(sizeof(ASTNode));
 	if (!root)
 		exit(-1);
-	if ((root->child == Id()))
+	if ((root->child = Id()))
 	{
 		if(Match(LM))
 		{
 			root->type = ARRAYDECLARATOR;
-			if ((root->child->brother == Const()))
+			if ((root->child->brother = Const()))
 			{
 				if (Match(RM))
 				{
@@ -283,7 +308,7 @@ AST Declarator()
 		else if(Match(LL))
 		{
 			root->type = FUNCTIONDECLARATOR;
-			if ((root->child->brother == FunctionDefinition()))
+			if ((root->child->brother = FunctionDefinition()))
 			{
 				root->child->brother->brother = NULL;
 			}
@@ -310,7 +335,7 @@ AST ActualParamList()
 	if (!root)
 		exit(-1);
 	root->type = ACTUALPARAMLIST;
-	if ((root->child == Exp()))
+	if ((root->child = Exp()))
 	{
 		if (Match(COMMA))
 		{
@@ -328,11 +353,11 @@ AST FunctionDefinition()
 	if (!root)
 		exit(-1);
 	root->type = FUNCTIONDEFINITION;
-	if ((root->child == FormalParamList()))
+	if ((root->child = FormalParamList()))
 	{
 		if (Match(RL))
 		{
-			if ((root->child->brother == StatBlock()))
+			if ((root->child->brother = StatBlock()))
 				root->child->brother->brother = NULL;
 		}
 		else
@@ -342,7 +367,7 @@ AST FunctionDefinition()
 	{
 		if (Match(RL))
 		{
-			if ((root->child == StatBlock()))
+			if ((root->child = StatBlock()))
 				root->child->brother = NULL;
 		}
 		else
@@ -357,11 +382,12 @@ AST FormalParamList()
 	if (!root)
 		exit(-1);
 	root->type = FORMALPARAMLIST;
-	if ((root->child == FormalParam()))
+	if ((root->child = FormalParam()))
 	{
 		if (Match(COMMA))
 		{
-			root->child->brother = FormalParamList();
+			if((root->child->brother = FormalParamList()))
+				root->child->brother->brother = NULL;
 		}
 	}
 	else
@@ -375,9 +401,9 @@ AST FormalParam()
 	if (!root)
 		exit(-1);
 	root->type = FORMALPARAM;
-	if ((root->child == TypeDecl()))
+	if ((root->child = DeclSpecs()))
 	{
-		if ((root->child->brother == Id()))
+		if ((root->child->brother = Id()))
 		{
 			root->child->brother->brother = NULL;
 		}
@@ -397,7 +423,7 @@ AST StatBlock()
 	root->type = STATBLOCK;
 	if (Match(LG))
 	{
-		if ((root->child == LocalDeclList()))
+		if ((root->child = LocalDeclList()))
 		{
 			root->child->brother = StatList();
 			if (Match(RG));
@@ -406,7 +432,7 @@ AST StatBlock()
 		}
 		else
 		{
-			if ((root->child == StatList()))
+			if ((root->child = StatList()))
 			{
 				if (Match(RG))
 					root->child->brother = NULL;
@@ -428,7 +454,7 @@ AST LocalDeclList()
 	if (!root)
 		exit(-1);
 	root->type = LOCALDECLLIST;
-	if((root->child == LocalDecl()))
+	if((root->child = LocalDecl()))
 	{
 		if(Match(COMMA))
 		{
@@ -446,9 +472,9 @@ AST LocalDecl()
 	if (!root)
 		exit(-1);
 	root->type = LOCALDECL;
-	if ((root->child == TypeDecl()))
+	if ((root->child = DeclSpecs()))
 	{
-		if ((root->child->brother == InitDeclaratorList()))
+		if ((root->child->brother = InitDeclaratorList()))
 		{
 			if (Match(SEMICOLON));
 			else
@@ -468,9 +494,9 @@ AST StatList()
 	if (!root)
 		exit(-1);
 	root->type = STATLIST;
-	if ((root->child == Stat()))
+	if ((root->child = Stat()))
 	{
-		if ((root->child->brother == StatList()))
+		if ((root->child->brother = StatList()))
 			root->child->brother->brother = NULL;
 	}
 	else
@@ -483,34 +509,25 @@ AST Stat()
 	AST root = (AST)malloc(sizeof(ASTNode));
 	if (!root)
 		exit(-1);
-	if (Match(RETURN))
-	{
-		root->type = RETURNSTAT;
-		if ((root->child == Exp()))
-		{
-			if (Match(SEMICOLON))
-				root->child->brother = NULL;
-			else
-				return NULL;
-		}
-		else
-			return NULL;
-	}
-	else if ((root->child == JumpStat()))
+	root->type = STAT;
+	if ((root->child = ReturnStat()))
 	{
 		root->child->brother = NULL;
 	}
-	else if ((root->child == SelectStat()))
+	else if ((root->child = JumpStat()))
 	{
 		root->child->brother = NULL;
 	}
-	else if ((root->child == IterationStat()))
+	else if ((root->child = SelectStat()))
 	{
 		root->child->brother = NULL;
 	}
-	else if ((root->child == Exp()))
+	else if ((root->child = IterationStat()))
 	{
-		root->type = STAT;
+		root->child->brother = NULL;
+	}
+	else if ((root->child = Exp()))
+	{
 		if (Match(SEMICOLON))
 		{
 			root->child->brother = NULL;
@@ -523,6 +540,29 @@ AST Stat()
 	return root;
 }
 
+AST ReturnStat()
+{
+	AST root = (AST)malloc(sizeof(ASTNode));
+	if (!root)
+		exit(-1);
+	root->type = RETURNSTAT;
+	if (Match(RETURN))
+	{
+		if ((root->child = Exp()))
+		{
+			if (Match(SEMICOLON))
+				root->child->brother = NULL;
+			else
+				return NULL;
+		}
+		else
+			return NULL;
+	}
+	else
+		return NULL;
+	return  root;
+}
+
 AST SelectStat()
 {
 	AST root = (AST)malloc(sizeof(ASTNode));
@@ -533,18 +573,18 @@ AST SelectStat()
 	{
 		if (Match(LL))
 		{
-			if ((root->child == Exp()))
+			if ((root->child = Exp()))
 			{
 				if (Match(RL))
 				{
-					if ((root->child->brother == StatBlock()))
+					if ((root->child->brother = StatBlock()))
 					{
 						if (Match(ELSE))
 						{
 							root->type = IFELSESTAT;
-							if ((root->child->brother->brother == StatBlock()))
+							if ((root->child->brother->brother = StatBlock()))
 								root->child->brother->brother->brother = NULL;
-							else if ((root->child->brother->brother == Stat()))
+							else if ((root->child->brother->brother = Stat()))
 								root->child->brother->brother->brother = NULL;
 
 						}
@@ -554,14 +594,14 @@ AST SelectStat()
 							root->child->brother->brother = NULL;
 						}
 					}
-					else if((root->child->brother == Stat()))
+					else if((root->child->brother = Stat()))
 					{
 						if (Match(ELSE))
 						{
 							root->type = IFELSESTAT;
-							if ((root->child->brother->brother == StatBlock()))
+							if ((root->child->brother->brother = StatBlock()))
 								root->child->brother->brother->brother = NULL;
-							else if ((root->child->brother->brother == Stat()))
+							else if ((root->child->brother->brother = Stat()))
 								root->child->brother->brother->brother = NULL;
 						}
 						else
@@ -621,18 +661,19 @@ AST IterationStat()
 	root->type = ITERATIONSTAT;
 	if(Match(WHILE))
 	{
+		root->type = WHILESTAT;
 		if(Match(LL))
 		{
-			if((root->child == Exp()))
+			if((root->child = Exp()))
 			{
 				if (Match(RL))
 				{
-					if ((root->child->brother == StatBlock()))
+					if ((root->child->brother = StatBlock()))
 					{
 						root->data.key_name = keywords[12];
 						root->child->brother->brother = NULL;
 					}
-					else if ((root->child->brother == Stat()))
+					else if ((root->child->brother = Stat()))
 					{
 						root->data.key_name = keywords[12];
 						root->child->brother->brother = NULL;
@@ -651,13 +692,14 @@ AST IterationStat()
 	}
 	else if(Match(DO))
 	{
-		if ((root->child == StatBlock()))
+		root->type = DOWHILESTAT;
+		if ((root->child = StatBlock()))
 		{
 			if(Match(WHILE))
 			{
 				if(Match(LL))
 				{
-					if((root->child->brother == Exp()))
+					if((root->child->brother = Exp()))
 					{
 						if (Match(RL))
 						{
@@ -681,13 +723,13 @@ AST IterationStat()
 			else
 				return NULL;
 		}
-		else if ((root->child == Stat()))
+		else if ((root->child = Stat()))
 		{
 			if (Match(WHILE))
 			{
 				if (Match(LL))
 				{
-					if ((root->child->brother == Exp()))
+					if ((root->child->brother = Exp()))
 					{
 						if (Match(RL))
 						{
@@ -716,32 +758,33 @@ AST IterationStat()
 	}
 	else if(Match(FOR))
 	{
+		root->type = FORSTAT;
 		ASTNode* p=root;
 		if (Match(LL))
 		{
-			if ((p->child == Exp()))
+			if ((p->child = Exp()))
 			{
 				p = p->child;
 				if (Match(SEMICOLON))
 				{
-					if((p->brother == Exp()))
+					if((p->brother = Exp()))
 					{
 						p = p->brother;
 						if (Match(SEMICOLON))
 						{
-							if((p->brother == Exp()))
+							if((p->brother = Exp()))
 							{
 								p = p->brother;
 								if (Match(RL))
 								{
-									if ((p->brother == StatBlock()))
+									if ((p->brother = StatBlock()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 123;
 										p->brother->brother = NULL;
 									}
-									else if ((p->brother == Stat()))
+									else if ((p->brother = Stat()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 123;
 										p->brother->brother = NULL;
 									}
 									else
@@ -754,14 +797,14 @@ AST IterationStat()
 							{
 								if (Match(RL))
 								{
-									if ((p->brother == StatBlock()))
+									if ((p->brother = StatBlock()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 12;
 										p->brother->brother = NULL;
 									}
-									else if ((p->brother == Stat()))
+									else if ((p->brother = Stat()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 12;
 										p->brother->brother = NULL;
 									}
 									else
@@ -778,19 +821,19 @@ AST IterationStat()
 					{
 						if (Match(SEMICOLON))
 						{
-							if ((p->brother == Exp()))
+							if ((p->brother = Exp()))
 							{
 								p = p->brother;
 								if (Match(RL))
 								{
-									if ((p->brother == StatBlock()))
+									if ((p->brother = StatBlock()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 13;
 										p->brother->brother = NULL;
 									}
-									else if ((p->brother == Stat()))
+									else if ((p->brother = Stat()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 13;
 										p->brother->brother = NULL;
 									}
 									else
@@ -803,14 +846,14 @@ AST IterationStat()
 							{
 								if (Match(RL))
 								{
-									if ((p->brother == StatBlock()))
+									if ((p->brother = StatBlock()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 1;
 										p->brother->brother = NULL;
 									}
-									else if ((p->brother == Stat()))
+									else if ((p->brother = Stat()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 1;
 										p->brother->brother = NULL;
 									}
 									else
@@ -831,24 +874,24 @@ AST IterationStat()
 			{
 				if (Match(SEMICOLON))
 				{
-					if ((p->child == Exp()))
+					if ((p->child = Exp()))
 					{
 						p = p->child;
 						if (Match(SEMICOLON))
 						{
-							if ((p->brother == Exp()))
+							if ((p->brother = Exp()))
 							{
 								p = p->brother;
 								if (Match(RL))
 								{
-									if ((p->brother == StatBlock()))
+									if ((p->brother = StatBlock()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 23;
 										p->brother->brother = NULL;
 									}
-									else if ((p->brother == Stat()))
+									else if ((p->brother = Stat()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 23;
 										p->brother->brother = NULL;
 									}
 									else
@@ -861,14 +904,14 @@ AST IterationStat()
 							{
 								if (Match(RL))
 								{
-									if ((p->brother == StatBlock()))
+									if ((p->brother = StatBlock()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 2;
 										p->brother->brother = NULL;
 									}
-									else if ((p->brother == Stat()))
+									else if ((p->brother = Stat()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 2;
 										p->brother->brother = NULL;
 									}
 									else
@@ -885,19 +928,19 @@ AST IterationStat()
 					{
 						if (Match(SEMICOLON))
 						{
-							if ((p->child == Exp()))
+							if ((p->child = Exp()))
 							{
 								p = p->child;
 								if (Match(RL))
 								{
-									if ((p->brother == StatBlock()))
+									if ((p->brother = StatBlock()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 3;
 										p->brother->brother = NULL;
 									}
-									else if ((p->brother == Stat()))
+									else if ((p->brother = Stat()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 3;
 										p->brother->brother = NULL;
 									}
 									else
@@ -910,14 +953,14 @@ AST IterationStat()
 							{
 								if (Match(RL))
 								{
-									if ((p->child == StatBlock()))
+									if ((p->child = StatBlock()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 0;
 										p->child->brother = NULL;
 									}
-									else if ((p->child == Stat()))
+									else if ((p->child = Stat()))
 									{
-										root->data.key_name = keywords[11];
+										root->data.ci = 0;
 										p->child->brother = NULL;
 									}
 									else
@@ -959,12 +1002,7 @@ AST Exp()
 	char c = '\0';
 	while (((word != 'e') || ops[ops_top] != 'e') && !error)
 	{
-		if ((p == Id()))
-		{
-			p->brother = NULL;
-			ns[++ns_top] = *p;
-		}
-		else if ((p == Const()))
+		if ((p = Oprt()))
 		{
 			p->brother = NULL;
 			ns[++ns_top] = *p;
@@ -1037,9 +1075,84 @@ AST Exp()
 		if (!root)
 			exit(-1);
 		*root = ns[ns_top];
+		root->type = EXP;
 		return root;
 	}
 	return NULL;
+}
+
+AST Oprt()
+{
+	AST root = (AST)malloc(sizeof(ASTNode));
+	if (!root)
+		exit(-1);
+	root->type = OPRT;
+	if ((root->child = Id()))
+	{
+		if (Match(LM))
+		{
+			if ((root->child->brother = Const()))
+			{
+				root->child->type = ARRAYNODE;
+				if (Match(RM))
+				{
+					root->child->brother->brother = NULL;
+				}
+				else
+					return NULL;
+			}
+			else
+				return NULL;
+		}
+		else if (Match(LL))
+		{
+			if ((root->child->brother = Function()))
+			{
+				root->child->type = FUNCTIONNODE;
+				root->child->brother->brother = NULL;
+			}
+			else
+				return NULL;
+		}
+		else
+		{
+			root->child->brother = NULL;
+		}
+	}
+	else if ((root->child = Const()))
+	{
+		root->child->brother = NULL;
+	}
+	else
+		return NULL;
+	return root;
+}
+
+AST Function()
+{
+	AST root = (AST)malloc(sizeof(ASTNode));
+	if (!root)
+		exit(-1);
+	root->type = FUNCTIONNODE;
+	if ((root->child = ActualParamList()))
+	{
+		if (Match(RL))
+		{
+			root->child->brother = NULL;
+		}
+		else
+			return NULL;
+	}
+	else
+	{
+		if (Match(RL))
+		{
+			root->child = NULL;
+		}
+		else
+			return NULL;
+	}
+	return root;
 }
 
 AST Id()
@@ -1107,124 +1220,125 @@ AST Const()
 	return root;
 }
 
-void ShowAST(AST t, int i)
+void ShowAST(AST t, ASTGeneratorGUI* w)
 {
-	int flag = 0;
-	if (!t)
-		return;
-	Node* p;
-	int j;
-	for (j = 0;j < i;j++)
-		printf("\t");
-	switch (t->type)
-	{
-	case EXTERNALDECLLIST:
-		printf("外部定义序列：\n");
-		break;
-	case EXTERNALDECL:
-		printf("外部定义：\n");
-		break;
-	case DECL:
-	case DECLSPECS:
-		goto next;
-	case TYPEDECL:
-		printf("类型：%s\n",t->data.key_name);
-		break;
-	case INITDECLARATIONLIST:
-		printf("标识符序列：\n");
-		break;
-	case DECLARATOR:
-		printf("标识符：\n");
-		break;
-	case ARRAYDECLARATOR:
-		printf("数组标识符：\n");
-		break;
-	case FUNCTIONDECLARATOR:
-		printf("函数标识符：\n");
-		break;
-	case ACTUALPARAMLIST:
-		printf("实参列表：\n");
-		break;
-	case FUNCTIONDEFINITION:
-		printf("函数定义：\n");
-		break;
-	case FORMALPARAMLIST:
-		printf("形参列表：\n");
-		break;
-	case FORMALPARAM:
-		printf("形参：\n");
-		break;
-	case STATBLOCK:
-		printf("复合语句：\n");
-		break;
-	case LOCALDECLLIST:
-		printf("局部变量声明：\n");
-		break;
-	case LOCALDECL:
-		printf("局部变量：\n");
-		break;
-	case STATLIST:
-		goto next;
-	case STAT:
-		printf("语句:\n");
-		break;
-	case RETURNSTAT:
-		printf("返回语句：\n");
-		break;
-	case SELECTSTAT:
-		goto next;
-	case IFELSESTAT:
-		printf("if-else选择语句：\n");
-		break;
-	case IFSTAT:
-		printf("if选择语句：\n");
-		break;
-	case JUMPSTAT:
-		printf("跳转语句：%s\n",t->data.key_name);
-		break;
-	case ITERATIONSTAT:
-		printf("%s循环：\n", t->data.key_name);
-		break;
-	case EXP:
-		printf("表达式：\n操作符:%s\n",codes[t->data.op-26]);
-		break;
-	case IDNODE:
-		printf("ID:");
-		p = t->data.id_name->next;
-		while (p)
-		{
-			putchar(p->data);
-			p = p->next;
-		}
-		putchar('\n');
-		break;
-	case CONST_I:
-		printf("整型常量：%d\n",t->data.ci);
-		break;
-	case CONST_L:
-		printf("长整型常量：%ld\n", t->data.cl);
-		break;
-	case CONST_D:
-		printf("双精度浮点型常量：%lf\n", t->data.cd);
-		break;
-	case CONST_F:
-		printf("单精度浮点整常量：%f\n", t->data.cf);
-		break;
-	case CONST_S:
-		printf("字符串常量：\n");
-		p = t->data.id_name->next;
-		while (p)
-		{
-			putchar(p->data);
-			p = p->next;
-		}
-		putchar('\n');
-		break;
-	default:
-		goto next;
-	}
-	flag = 1;
-	next:
-	ShowAST(t->child, i+flag);
-	ShowAST(t->brother, i);
+    w->InitTree(t);
+	//int flag = 0;
+	//if (!t)
+	//	return;
+	//Node* p;
+	//int j;
+	//for (j = 0;j < i;j++)
+	//	printf("\t");
+	//switch (t->type)
+	//{
+	//case EXTERNALDECLLIST:
+	//	printf("外部定义序列：\n");
+	//	break;
+	//case EXTERNALDECL:
+	//	printf("外部定义：\n");
+	//	break;
+	//case DECL:
+	//case DECLSPECS:
+	//	goto next;
+	//case TYPEDECL:
+	//	printf("类型：%s\n",t->data.key_name);
+	//	break;
+	//case INITDECLARATIONLIST:
+	//	printf("标识符序列：\n");
+	//	break;
+	//case DECLARATOR:
+	//	printf("标识符：\n");
+	//	break;
+	//case ARRAYDECLARATOR:
+	//	printf("数组标识符：\n");
+	//	break;
+	//case FUNCTIONDECLARATOR:
+	//	printf("函数标识符：\n");
+	//	break;
+	//case ACTUALPARAMLIST:
+	//	printf("实参列表：\n");
+	//	break;
+	//case FUNCTIONDEFINITION:
+	//	printf("函数定义：\n");
+	//	break;
+	//case FORMALPARAMLIST:
+	//	printf("形参列表：\n");
+	//	break;
+	//case FORMALPARAM:
+	//	printf("形参：\n");
+	//	break;
+	//case STATBLOCK:
+	//	printf("复合语句：\n");
+	//	break;
+	//case LOCALDECLLIST:
+	//	printf("局部变量声明：\n");
+	//	break;
+	//case LOCALDECL:
+	//	printf("局部变量：\n");
+	//	break;
+	//case STATLIST:
+	//	goto next;
+	//case STAT:
+	//	printf("语句:\n");
+	//	break;
+	//case RETURNSTAT:
+	//	printf("返回语句：\n");
+	//	break;
+	//case SELECTSTAT:
+	//	goto next;
+	//case IFELSESTAT:
+	//	printf("if-else选择语句：\n");
+	//	break;
+	//case IFSTAT:
+	//	printf("if选择语句：\n");
+	//	break;
+	//case JUMPSTAT:
+	//	printf("跳转语句：%s\n",t->data.key_name);
+	//	break;
+	//case ITERATIONSTAT:
+	//	printf("%s循环：\n", t->data.key_name);
+	//	break;
+	//case EXP:
+	//	printf("表达式：\n操作符:%s\n",codes[t->data.op-26]);
+	//	break;
+	//case IDNODE:
+	//	printf("ID:");
+	//	p = t->data.id_name->next;
+	//	while (p)
+	//	{
+	//		putchar(p->data);
+	//		p = p->next;
+	//	}
+	//	putchar('\n');
+	//	break;
+	//case CONST_I:
+	//	printf("整型常量：%d\n",t->data.ci);
+	//	break;
+	//case CONST_L:
+	//	printf("长整型常量：%ld\n", t->data.cl);
+	//	break;
+	//case CONST_D:
+	//	printf("双精度浮点型常量：%lf\n", t->data.cd);
+	//	break;
+	//case CONST_F:
+	//	printf("单精度浮点整常量：%f\n", t->data.cf);
+	//	break;
+	//case CONST_S:
+	//	printf("字符串常量：\n");
+	//	p = t->data.id_name->next;
+	//	while (p)
+	//	{
+	//		putchar(p->data);
+	//		p = p->next;
+	//	}
+	//	putchar('\n');
+	//	break;
+	//default:
+	//	goto next;
+	//}
+	//flag = 1;
+	//next:
+	//ShowAST(t->child, i+flag);
+	//ShowAST(t->brother, i);
 }

@@ -2,11 +2,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "token.h"
 #include "type_define.h"
-
-void SaveToken(int, string);
-int GetToken();
+#include  "function_decl.h"
 
 void SaveToken(int type, string s)
 {
@@ -110,6 +109,43 @@ int GetToken()
 			SaveToken(ID, head);
 		return ID; //是标识符
 	}
+    if (c == '#')
+    {
+        c = fgetc(fp);
+        do
+        {
+            Node* p = (Node*)malloc(sizeof(Node));
+            if (!p)
+                exit(-1);
+            p->data = c;
+            p->next = token->next;
+            token->next = p;
+            token = token->next;
+            c = fgetc(fp);
+        } while ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')||(c>='0'&&c<='9')||c=='_');
+        ungetc(c, fp);
+        Node* p = head->next;
+        int i, j;
+        for (i = 0;i < KEY_WORDS_NUM;i++)
+        {
+            flag = 0;
+            p = head->next;
+            j = 0;
+            while (p)
+            {
+                if (p->data != keywords[i][j++])
+                {
+                    flag = 1;
+                    break;
+                }
+                p = p->next;
+            }
+            if (keywords[i][j] == '\0' && flag == 0)
+            {
+                return i + 2;
+            }
+        }
+    }
 	if ((c >= '0' && c <= '9')) //常量
 	{
 		if (c == '0') //十六进制，八进制或者0开头的浮点数

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "type_define.h"
 #include "astgeneratorgui.h"
 
@@ -35,4 +35,4 @@ static AST Oprt();
 static AST Function();
 static AST Const();
 static AST Id();
-static void ShowAST(AST t, ASTGeneratorGUI w);
+static void ShowAST(AST t, ASTGeneratorGUI* w);

@@ -23,6 +23,7 @@ SOURCES += \
 
 HEADERS += \
     astgeneratorgui.h \
+    function_decl.h \
     token.h \
     type_define.h
 
