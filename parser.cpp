@@ -82,14 +82,22 @@ AST Macro()
 				token = token->next;
 				c = fgetc(fp);
 				if (c == '\n')
-					l_num++;
+                {
+                    warnings<<QString(QString::number(l_num) + ":错误的文件包含命令");
+                    l_num++;
+                    word = GetToken();
+                    return NULL;
+                }
 			} while (c != '>');
 			root->data.id_name = head;
 			root->child = NULL;
 		}
 		else
 		{
-			printf("%d:错误的文件包含命令！\n", l_num);
+            warnings<<QString(QString::number(l_num) + ":错误的文件包含命令");
+            char bin[80];
+            fgets(bin,80,fp);
+            word = GetToken();
 			return NULL;
 		}
 	}
@@ -100,8 +108,13 @@ AST Macro()
 		while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
 		{
 			c = fgetc(fp);
-			if (c == '\n')
-				l_num++;
+            if (c == '\n')
+            {
+                warnings<<QString(QString::number(l_num) + ":错误的宏定义命令");
+                l_num++;
+                word = GetToken();
+                return NULL;
+            }
 		}
 		do
 		{
@@ -112,9 +125,7 @@ AST Macro()
 			p->next = token->next;
 			token->next = p;
 			token = token->next;
-			c = fgetc(fp);;
-			if (c == '\n')
-				l_num++;
+            c = fgetc(fp);
 		} while (c != ' ' && c != '\t' && c != '\r' && c != '\n');
 		root->child = (ASTNode*)malloc(sizeof(ASTNode));
 		if (!root->child)
@@ -129,8 +140,13 @@ AST Macro()
 		while (c == ' ' || c == '\t' || c == '\r' || c == '\n')
 		{
 			c = fgetc(fp);
-			if (c == '\n')
-				l_num++;
+            if (c == '\n')
+            {
+                warnings<<QString(QString::number(l_num) + ":错误的宏定义命令");
+                l_num++;
+                word = GetToken();
+                return NULL;
+            }
 		}
 		do
 		{
@@ -141,9 +157,7 @@ AST Macro()
 			p->next = token2->next;
 			token2->next = p;
 			token2 = token2->next;
-			c = fgetc(fp);;
-			if (c == '\n')
-				l_num++;
+            c = fgetc(fp);
 		} while (c != ' ' && c != '\t' && c != '\r' && c != '\n');
 		ungetc(c, fp);
 		root->child->brother = (ASTNode*)malloc(sizeof(ASTNode));
@@ -153,7 +167,7 @@ AST Macro()
 		root->child->brother->child = NULL;
 	}
 	else
-		return NULL;
+        return NULL;
 	word = GetToken();
 	return root;
 }
@@ -217,15 +231,18 @@ AST Decl()
 			return NULL;
 	}
 	else
-	{
-		printf("%d:错误的关键字！\n", l_num);
-		return NULL;
-	}
+        return NULL;
 	if(root->child->brother->child->type!=FUNCTIONDECLARATOR)
 	{
 		if (Match(SEMICOLON));
 		else
-			return NULL;
+        {
+            warnings<<QString(QString::number(l_num) + ":缺少分号");
+            char bin[80];
+            fgets(bin,80,fp);
+            word = GetToken();
+            return NULL;
+        }
 	}
 	return root;
 }
@@ -323,7 +340,6 @@ AST Declarator()
 	}
 	else
 	{
-		printf("%d错误的标识符\n",l_num);
 		return NULL;
 	}
 	return root;
@@ -359,6 +375,8 @@ AST FunctionDefinition()
 		{
 			if ((root->child->brother = StatBlock()))
 				root->child->brother->brother = NULL;
+            else
+                return NULL;
 		}
 		else
 			return NULL;
@@ -369,9 +387,14 @@ AST FunctionDefinition()
 		{
 			if ((root->child = StatBlock()))
 				root->child->brother = NULL;
+            else
+                return NULL;
 		}
 		else
+        {
+            warnings<<QString(QString::number(l_num) + ":缺少括号");
 			return NULL;
+        }
 	}
 	return root;
 }
@@ -387,7 +410,7 @@ AST FormalParamList()
 		if (Match(COMMA))
 		{
 			if((root->child->brother = FormalParamList()))
-				root->child->brother->brother = NULL;
+                root->child->brother->brother = NULL;
 		}
 	}
 	else
@@ -411,7 +434,9 @@ AST FormalParam()
 			return NULL;
 	}
 	else
+    {
 		return NULL;
+    }
 	return root;
 }
 
@@ -484,7 +509,9 @@ AST LocalDecl()
 			return NULL;
 	}
 	else
+    {
 		return NULL;
+    }
 	return root;
 }
 
@@ -553,11 +580,17 @@ AST ReturnStat()
 			if (Match(SEMICOLON))
 				root->child->brother = NULL;
 			else
+            {
+                warnings<<QString(QString::number(l_num) + ":缺少分号");
 				return NULL;
+            }
 		}
 		else
+        {
+            warnings<<QString(QString::number(l_num) + ":错误的表达式");
 			return NULL;
-	}
+        }
+    }
 	else
 		return NULL;
 	return  root;
@@ -617,7 +650,10 @@ AST SelectStat()
 					return NULL;
 			}
 			else
+            {
+                warnings<<QString(QString::number(l_num) + ":错误的表达式");
 				return NULL;
+            }
 		}
 		else
 			return NULL;
@@ -685,7 +721,10 @@ AST IterationStat()
 					return NULL;
 			}
 			else
+            {
+                warnings<<QString(QString::number(l_num) + ":错误的表达式");
 				return NULL;
+            }
 		}
 		else
 			return NULL;
@@ -715,7 +754,10 @@ AST IterationStat()
 							return NULL;
 					}
 					else
+                    {
+                        warnings<<QString(QString::number(l_num) + ":错误的表达式");
 						return NULL;
+                    }
 				}
 				else
 					return NULL;
@@ -745,7 +787,10 @@ AST IterationStat()
 							return NULL;
 					}
 					else
+                    {
+                        warnings<<QString(QString::number(l_num) + ":错误的表达式");
 						return NULL;
+                    }
 				}
 				else
 					return NULL;
@@ -1223,122 +1268,4 @@ AST Const()
 void ShowAST(AST t, ASTGeneratorGUI* w)
 {
     w->InitTree(t);
-	//int flag = 0;
-	//if (!t)
-	//	return;
-	//Node* p;
-	//int j;
-	//for (j = 0;j < i;j++)
-	//	printf("\t");
-	//switch (t->type)
-	//{
-	//case EXTERNALDECLLIST:
-	//	printf("外部定义序列：\n");
-	//	break;
-	//case EXTERNALDECL:
-	//	printf("外部定义：\n");
-	//	break;
-	//case DECL:
-	//case DECLSPECS:
-	//	goto next;
-	//case TYPEDECL:
-	//	printf("类型：%s\n",t->data.key_name);
-	//	break;
-	//case INITDECLARATIONLIST:
-	//	printf("标识符序列：\n");
-	//	break;
-	//case DECLARATOR:
-	//	printf("标识符：\n");
-	//	break;
-	//case ARRAYDECLARATOR:
-	//	printf("数组标识符：\n");
-	//	break;
-	//case FUNCTIONDECLARATOR:
-	//	printf("函数标识符：\n");
-	//	break;
-	//case ACTUALPARAMLIST:
-	//	printf("实参列表：\n");
-	//	break;
-	//case FUNCTIONDEFINITION:
-	//	printf("函数定义：\n");
-	//	break;
-	//case FORMALPARAMLIST:
-	//	printf("形参列表：\n");
-	//	break;
-	//case FORMALPARAM:
-	//	printf("形参：\n");
-	//	break;
-	//case STATBLOCK:
-	//	printf("复合语句：\n");
-	//	break;
-	//case LOCALDECLLIST:
-	//	printf("局部变量声明：\n");
-	//	break;
-	//case LOCALDECL:
-	//	printf("局部变量：\n");
-	//	break;
-	//case STATLIST:
-	//	goto next;
-	//case STAT:
-	//	printf("语句:\n");
-	//	break;
-	//case RETURNSTAT:
-	//	printf("返回语句：\n");
-	//	break;
-	//case SELECTSTAT:
-	//	goto next;
-	//case IFELSESTAT:
-	//	printf("if-else选择语句：\n");
-	//	break;
-	//case IFSTAT:
-	//	printf("if选择语句：\n");
-	//	break;
-	//case JUMPSTAT:
-	//	printf("跳转语句：%s\n",t->data.key_name);
-	//	break;
-	//case ITERATIONSTAT:
-	//	printf("%s循环：\n", t->data.key_name);
-	//	break;
-	//case EXP:
-	//	printf("表达式：\n操作符:%s\n",codes[t->data.op-26]);
-	//	break;
-	//case IDNODE:
-	//	printf("ID:");
-	//	p = t->data.id_name->next;
-	//	while (p)
-	//	{
-	//		putchar(p->data);
-	//		p = p->next;
-	//	}
-	//	putchar('\n');
-	//	break;
-	//case CONST_I:
-	//	printf("整型常量：%d\n",t->data.ci);
-	//	break;
-	//case CONST_L:
-	//	printf("长整型常量：%ld\n", t->data.cl);
-	//	break;
-	//case CONST_D:
-	//	printf("双精度浮点型常量：%lf\n", t->data.cd);
-	//	break;
-	//case CONST_F:
-	//	printf("单精度浮点整常量：%f\n", t->data.cf);
-	//	break;
-	//case CONST_S:
-	//	printf("字符串常量：\n");
-	//	p = t->data.id_name->next;
-	//	while (p)
-	//	{
-	//		putchar(p->data);
-	//		p = p->next;
-	//	}
-	//	putchar('\n');
-	//	break;
-	//default:
-	//	goto next;
-	//}
-	//flag = 1;
-	//next:
-	//ShowAST(t->child, i+flag);
-	//ShowAST(t->brother, i);
 }

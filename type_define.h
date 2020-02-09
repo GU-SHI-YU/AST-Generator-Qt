@@ -1,5 +1,6 @@
 ﻿#pragma once
 #include <stdio.h>
+#include <QMainWindow>
 
 static FILE* fp;
 static int l_num;

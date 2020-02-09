@@ -28,6 +28,8 @@ private slots:
 
     void on_pushButtonFile_clicked();
 
+    void on_showWarnings_blockCountChanged(int newBlockCount);
+
 private:
     Ui::ASTGeneratorGUI *ui;
 	QString trans(string s);

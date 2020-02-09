@@ -36,3 +36,5 @@ static char op_prior[17][18] = {
 
 static Token* token_list;
 static Token* last_token;
+
+static QStringList warnings;

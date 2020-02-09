@@ -492,6 +492,7 @@ QString ASTGeneratorGUI::trans(string s)
 
 void ASTGeneratorGUI::on_pushButton_clicked()
 {
+    l_num = 1;
     ui->treeWidget->clear();
     QString s = ui->lineEdit->text();
     QByteArray ba = s.toLatin1();
@@ -501,6 +502,8 @@ void ASTGeneratorGUI::on_pushButton_clicked()
     QFile qf;
     qf.open(fp,QIODevice::ReadWrite,QFileDevice::AutoCloseHandle);
     ui->textEdit->setPlainText(qf.readAll());
+    for(auto &warning : warnings)
+        ui->showWarnings->appendPlainText(warning);
     qf.close();
 }
 
@@ -511,8 +514,9 @@ void ASTGeneratorGUI::on_lineEdit_returnPressed()
 
 void ASTGeneratorGUI::on_pushButtonFile_clicked()
 {
+    l_num = 1;
     ui->treeWidget->clear();
-    QString s = QFileDialog::getOpenFileName(this, tr("打开文件"), tr("C:\\"), tr("C Files (*.cpp)"));
+    QString s = QFileDialog::getOpenFileName(this, tr("打开文件"), tr("D:\\"), tr("C Files (*.cpp)"));
     QByteArray ba = s.toLatin1();
     fp = fopen(ba.data(),"r");
     Program(this);
@@ -520,5 +524,7 @@ void ASTGeneratorGUI::on_pushButtonFile_clicked()
     QFile qf;
     qf.open(fp,QIODevice::ReadWrite,QFileDevice::AutoCloseHandle);
     ui->textEdit->setPlainText(qf.readAll());
+    for(auto &warning : warnings)
+        ui->showWarnings->appendPlainText(warning);
     qf.close();
 }
